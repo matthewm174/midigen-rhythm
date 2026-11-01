@@ -1,4 +1,4 @@
-// Minimal WebAudio drum synth for previewing. The real sound comes from Superior Drummer 3.
+// Minimal WebAudio synth for previewing. The real sound comes from Superior Drummer 3 and your instruments.
 
 const TOM_HZ = { t1: 230, t2: 185, t3: 150, f1: 112, f2: 88 };
 
@@ -56,7 +56,37 @@ export class Player {
     o.stop(t + decay + 0.05);
   }
 
+  // Pitched voices: a small subtractive synth per voice. Frequency comes from the float pitch, so microtones sound.
+  note(ev, t) {
+    const ctx = this.ctx;
+    const f = 440 * 2 ** ((ev.pitch - 69) / 12);
+    const v = (ev.vel / 127) ** 1.6;
+    const dur = Math.max(0.04, Math.min(8, ev.durSec || 0.2));
+    const spec = {
+      bass: { type: 'sawtooth', cut: 520, peak: 0.55, a: 0.005 },
+      comp: { type: 'triangle', cut: 2400, peak: 0.13, a: 0.012 },
+      melody: { type: 'square', cut: 2600, peak: 0.16, a: 0.01 },
+    }[ev.voice] || { type: 'sine', cut: 3000, peak: 0.2, a: 0.01 };
+    const o = ctx.createOscillator();
+    o.type = spec.type;
+    o.frequency.setValueAtTime(f, t);
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.frequency.value = spec.cut;
+    const g = ctx.createGain();
+    const peak = Math.max(0.0002, spec.peak * v);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + spec.a);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak * 0.6), t + spec.a + Math.min(0.3, dur));
+    g.gain.setValueAtTime(Math.max(0.0002, peak * 0.6), t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+    o.connect(flt).connect(g).connect(this.master);
+    o.start(t);
+    o.stop(t + dur + 0.1);
+  }
+
   trigger(ev, t) {
+    if (ev.voice) { this.note(ev, t); return; }
     const v = (ev.vel / 127) ** 1.5;
     switch (ev.art) {
       case 'kick':
@@ -98,7 +128,7 @@ export class Player {
     this.stop();
     this.ctx.resume();
     const secPerTick = 60 / tempo / ppq;
-    this.events = events.map((e) => ({ ...e, sec: e.tick * secPerTick }));
+    this.events = events.map((e) => ({ ...e, sec: e.tick * secPerTick, durSec: e.dur ? e.dur * secPerTick : 0 })).sort((a, b) => a.sec - b.sec);
     this.loopSec = totalTicks * secPerTick;
     this.start = this.ctx.currentTime + 0.08;
     this.cursor = 0;

@@ -94,18 +94,36 @@ export const DESCRIPTORS = {
   crystalline: { mutation: 0.1, algos: { crystal: 3 } },
   organic: { humanize: 0.7, algos: { genetic: 2, ca: 1 } },
   fractal: { caRule: 90, algos: { lsystem: 2, ca: 1.5 } },
+
+  // Meter feels (they mostly suggest a time signature when the meter is on auto).
+  waltz: { _w: 1.5, downbeat: 0.85, density: 0.35, syncopation: 0.08, tempo: 150 },
+  jig: { _w: 1.5, density: 0.5, syncopation: 0.1, tempo: 120 },
+  oddtime: { tension: 0.5, syncopation: 0.45 },
+  compound: {},
 };
+
+// Time signatures each descriptor suggests when the meter is on auto (weights; drawn per seed).
+const METER_HINTS = {
+  metal: { '4/4': 3 }, thrash: { '4/4': 3 }, death: { '4/4': 3 }, blackmetal: { '4/4': 2, '3/4': 1, '6/8': 1 }, punk: { '4/4': 4 }, rock: { '4/4': 4 },
+  doom: { '4/4': 2, '3/4': 1, '6/8': 1 }, funeral: { '3/4': 1, '4/4': 1 }, grindcore: { '4/4': 4 }, djent: { '4/4': 2, '7/8': 1, '11/8': 0.5 },
+  math: { '7/8': 2, '5/4': 1.5, '11/8': 1, '13/8': 0.5 }, funk: { '4/4': 4 }, hiphop: { '4/4': 4 }, jazz: { '4/4': 3, '3/4': 0.5 }, dance: { '4/4': 5 },
+  tribal: { '7/8 (2+2+3)': 2, '12/8': 2, '6/8': 1, '5/4': 1 }, ritual: { '12/8': 2, '6/8': 1, '4/4': 1 }, gallop: { '4/4': 2, '6/8': 1 },
+  complex: { '7/8': 1, '5/4': 1, '4/4': 1 }, simple: { '4/4': 2 }, hypnotic: { '12/8': 1, '4/4': 1 }, chaotic: { '5/4': 1, '7/8': 1, '11/16': 0.5 },
+  crystalline: { '5/4': 1, '13/8': 0.5 }, phasing: { '4/4': 1 }, polymetric: { '4/4': 1, '7/8': 0.5 },
+  waltz: { '3/4': 10 }, jig: { '6/8': 10 }, oddtime: { '7/8': 2, '5/4': 2, '11/8': 1, '13/8': 1, '9/8 (2+2+2+3)': 1 }, compound: { '6/8': 2, '12/8': 2, '9/8': 1 },
+};
+for (const [name, m] of Object.entries(METER_HINTS)) DESCRIPTORS[name].meter = m;
 
 export const DISPLAY = {
   doublebass: 'double bass', fourfloor: 'four on the floor', blackmetal: 'black metal', death: 'death metal',
   hiphop: 'hip-hop', laidback: 'laid back', ghosty: 'ghost notes', accents: 'cymbal accents',
-  funeral: 'funeral march', rolls: 'snare rolls',
+  funeral: 'funeral march', rolls: 'snare rolls', oddtime: 'odd time',
 };
 export const displayName = (name) => DISPLAY[name] || name;
 
 export const DESCRIPTOR_GROUPS = [
   ['Genre', ['metal', 'thrash', 'death', 'blackmetal', 'punk', 'rock', 'doom', 'grindcore', 'djent', 'math', 'funk', 'hiphop', 'jazz', 'dance', 'tribal', 'ritual']],
-    ['Kick & feel', ['doublebass', 'gallop', 'fourfloor', 'blast', 'halftime', 'doubletime', 'swing', 'straight', 'syncopated', 'downbeat', 'groove', 'laidback', 'driving', 'funeral', 'dreary']],
+    ['Kick & feel', ['doublebass', 'gallop', 'fourfloor', 'blast', 'halftime', 'doubletime', 'swing', 'straight', 'syncopated', 'downbeat', 'groove', 'laidback', 'driving', 'funeral', 'dreary', 'waltz', 'jig', 'compound', 'oddtime']],
     ['Amount', ['simple', 'complex', 'sparse', 'dense', 'fast', 'slow', 'ghosty', 'fills', 'toms', 'rolls', 'lulls', 'ride', 'hats', 'accents']],
   ['Dynamics', ['heavy', 'loud', 'soft', 'tight', 'loose']],
   ['Texture', ['polyrhythmic', 'polymetric', 'musical', 'hypnotic', 'chaotic', 'phasing', 'crystalline', 'organic', 'fractal']],
@@ -155,6 +173,8 @@ const PHRASES = {
   robotic: 'tight', quantized: 'tight', mechanical: 'tight', precise: 'tight',
   human: 'loose', sloppy: 'loose', humanized: 'loose', drunk: 'loose',
   'four on floor': 'fourfloor',
+  'odd time': 'oddtime', 'odd meter': 'oddtime', 'odd meters': 'oddtime', 'odd time signature': 'oddtime', 'odd time signatures': 'oddtime', 'odd times': 'oddtime',
+  waltzes: 'waltz', waltzing: 'waltz', valse: 'waltz', 'in three': 'waltz', 'triple meter': 'waltz', jigs: 'jig', 'compound meter': 'compound', 'compound time': 'compound',
 };
 
 const LOUD_ADJ = ['heavy', 'heavier', 'loud', 'louder', 'hard', 'harder', 'strong', 'stronger', 'powerful', 'punchy', 'aggressive', 'big', 'fat', 'pounding', 'accented', 'intense'];
@@ -188,6 +208,7 @@ const STOPWORDS = new Set([
   'kit', 'parts', 'flow', 'band', 'music', 'genre', 'way', 'just', 'only', 'by', 'from', 'my', 'me', 'we', 'our', 'up', 'down', 'bass',
 ]);
 STOPWORDS.delete('groove');
+export { STOPWORDS };
 
 const MAX_PHRASE = 5;
 
@@ -224,24 +245,34 @@ function matchAt(tokens, i, table) {
   return null;
 }
 
+const DRUM_VOCAB = { phrases: PHRASES, params: BASE_PARAMS, stop: STOPWORDS, dyn: { heavy: 1.4, loud: 1.4, soft: 0.6 } };
+
 // Free text -> { items: [{ name, weight, negate, start, end }], overrides, unknown: [{ word, start, end }], tempo }
 export function interpretDescriptors(input, weightScale = 1) {
+  return interpretWith(DRUM_VOCAB, input, weightScale);
+}
+
+// The same phrase reader with another vocabulary (the harmony styles use this).
+// vocab: { phrases, params (for key=value overrides), stop (extra stopwords), dyn (adjectives that scale the next phrase) }
+export function interpretWith(vocab, input, weightScale = 1) {
   const text = Array.isArray(input) ? input.join(', ') : String(input || '');
   const tokens = tokenize(text);
   const items = [];
   const overrides = {};
   const unknown = [];
-  let tempo = null;
+  let tempo = null, meter = null;
   let mul = 1, neg = false, modStart = null;
   const reset = () => { mul = 1; neg = false; modStart = null; };
+  const table = vocab.phrases;
+  const stop = vocab.stop || STOPWORDS;
 
   for (let i = 0; i < tokens.length;) {
     const tok = tokens[i];
     if (tok.boundary) reset();
     const kv = /^([a-z]+)=([\d.]+)$/.exec(tok.w);
     if (kv) {
-      const key = Object.keys(BASE_PARAMS).find((k) => k.toLowerCase() === kv[1]);
-      if (key && typeof BASE_PARAMS[key] === 'number') overrides[key] = parseFloat(kv[2]);
+      const key = Object.keys(vocab.params).find((k) => k.toLowerCase() === kv[1]);
+      if (key && typeof vocab.params[key] === 'number') overrides[key] = parseFloat(kv[2]);
       else unknown.push({ word: tok.w, start: tok.start, end: tok.end });
       i++; continue;
     }
@@ -250,7 +281,13 @@ export function interpretDescriptors(input, weightScale = 1) {
       tempo = Number(bpm[1]);
       i += bpm[2] ? 1 : 2; continue;
     }
-    const d = matchAt(tokens, i, PHRASES);
+    // A time signature in the text ("metal in 7/8", "5/4", "7/8 (2+2+3)") sets the meter.
+    if (/^\d+(?:\.\d+)?\/\d+$/.test(tok.w)) {
+      const grp = tokens[i + 1] && /^\d+(\+\d+)+$/.test(tokens[i + 1].w) ? tokens[i + 1].w : null;
+      meter = grp ? `${tok.w} (${grp})` : tok.w;
+      i += grp ? 2 : 1; continue;
+    }
+    const d = matchAt(tokens, i, table);
     if (d) {
       const last = tokens[i + d.n - 1];
       let w = mul * weightScale;
@@ -261,8 +298,8 @@ export function interpretDescriptors(input, weightScale = 1) {
       }
       i += d.n;
       // "heavy double bass" / "soft swing": the adjective also scales the next phrase.
-      const dyn = { heavy: 1.4, loud: 1.4, soft: 0.6 }[d.value];
-      if (dyn && tokens[i] && !tokens[i].boundary && matchAt(tokens, i, PHRASES)) {
+      const dyn = typeof d.value === 'string' ? vocab.dyn?.[d.value] : null;
+      if (dyn && tokens[i] && !tokens[i].boundary && matchAt(tokens, i, table)) {
         mul *= dyn;
         continue;
       }
@@ -277,16 +314,16 @@ export function interpretDescriptors(input, weightScale = 1) {
       modStart ??= tok.start;
       i++; continue;
     }
-    if (!STOPWORDS.has(tok.w) && !/^\d+$/.test(tok.w)) unknown.push({ word: tok.w, start: tok.start, end: tok.end });
+    if (!stop.has(tok.w) && !/^\d+$/.test(tok.w)) unknown.push({ word: tok.w, start: tok.start, end: tok.end });
     i++;
   }
-  return { items, overrides, unknown, tempo, text };
+  return { items, overrides, unknown, tempo, meter, text };
 }
 
 // Weighted blend of interpreted items onto the base parameters.
 export function blendItems(items, overrides = {}, base = BASE_PARAMS) {
   const sums = {}, totals = {};
-  const out = { ...base, algos: { ...base.algos } };
+  const out = { ...base, algos: { ...base.algos }, meters: {} };
   let tSum = 0, tW = 0;
   for (const it of items) {
     const d = DESCRIPTORS[it.name];
@@ -298,6 +335,7 @@ export function blendItems(items, overrides = {}, base = BASE_PARAMS) {
       if (k === '_w') continue;
       if (k === 'algos') { if (!it.negate) for (const [a, x] of Object.entries(v)) out.algos[a] = (out.algos[a] || 0) + x * w; continue; }
       if (k === 'caRule') { if (!it.negate) out.caRule = v; continue; }
+      if (k === 'meter') { if (!it.negate) for (const [m, x] of Object.entries(v)) out.meters[m] = (out.meters[m] || 0) + x * w; continue; }
       if (k === 'tempo') { if (!it.negate) { tSum += v * share; tW += share; } continue; }
       const b = base[k] ?? 0;
       const val = Math.max(0, Math.min(1, it.negate ? b - (v - b) * pull : b + (v - b) * pull));

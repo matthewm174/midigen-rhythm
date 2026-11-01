@@ -9,6 +9,13 @@ import { syncopationIndex, coincidence } from './score.js';
 export const TPQ = 480;
 const TIGHT = { kick: 0.5, snare: 0.7, hihat: 1.2, ride: 1, toms: 0.9, crash: 0.8, cymbals: 1 };
 
+// Swing delay for tatum t of a part (shared by the drums and the pitched voices so they stay locked).
+export function swingTicks(t, params, meter, tpt) {
+  if (!(params.swing > 0) || meter.resolution === 24) return 0;
+  const unit = params.density > 0.65 ? meter.resolution / 16 : meter.resolution / 8;
+  return unit >= 1 && t % (2 * unit) === unit ? (params.swing * unit * tpt) / 3 : 0;
+}
+
 export function finalize(result, cfg) {
   const { meter, parts, total } = result;
   const map = { ...DEFAULT_MAP, ...(cfg.drumMap || {}) };
@@ -59,11 +66,7 @@ export function finalize(result, cfg) {
         v *= gain;
         v += g.gauss() * params.humanize * 6;
 
-        let tick = T * tpt;
-        if (params.swing > 0 && meter.resolution !== 24) {
-          const unit = params.density > 0.65 ? meter.resolution / 16 : meter.resolution / 8;
-          if (unit >= 1 && t % (2 * unit) === unit) tick += (params.swing * unit * tpt) / 3;
-        }
+        let tick = T * tpt + swingTicks(t, params, meter, tpt);
         tick += g.gauss() * params.humanize * tpt * 0.1 * TIGHT[lane];
 
         const note = map[lane]?.[h.art] ?? map[lane]?.[DEFAULT_ART[lane]];

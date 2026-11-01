@@ -1,4 +1,58 @@
 import { LANES, LANE_LABELS, SYMBOLS } from '../core/drummap.js';
+import { noteName } from '../harmony/tuning.js';
+import { VOICE_LABELS } from '../harmony/generate.js';
+
+const ROLL_H = { melody: 64, comp: 72, bass: 48 };
+
+// Chord chart and piano rolls, positioned in cell units so zoom only needs --cell-w.
+function renderHarmonyRows(frag, result, cfg, total, barLen) {
+  const h = result.harmony;
+  const strip = (cls, label, height) => {
+    const r = el('div', `g-row g-roll ${cls}`);
+    r.style.gridTemplateColumns = `var(--label-w) calc(var(--cell-w) * ${total})`;
+    r.append(el('div', 'g-label', label));
+    const body = el('div', 'roll-body');
+    body.style.height = `${height}px`;
+    body.style.backgroundSize = `calc(var(--cell-w) * ${barLen}) 100%`;
+    r.append(body);
+    frag.append(r);
+    return body;
+  };
+  const place = (d, t, len) => {
+    d.style.left = `calc(var(--cell-w) * ${t})`;
+    d.style.width = `calc(var(--cell-w) * ${len} - 1px)`;
+  };
+
+  const chords = strip('g-chords', `${h.keyName} ${h.scaleName.replace(/ \(.*\)$/, '')}`, 22);
+  chords.parentElement.title = `${h.keyName} ${h.scaleName} · ${h.tuningName}`;
+  for (const p of h.parts) {
+    for (const c of p.prog.chords) {
+      const d = el('div', 'chord', c.sym);
+      place(d, p.start + c.t, c.len);
+      d.title = `${c.sym}${c.roman && c.roman !== c.sym ? ` (${c.roman})` : ''}${c.pedal != null ? ` over ${noteName(c.pedal)} pedal` : ''}`;
+      chords.append(d);
+    }
+  }
+
+  for (const voice of ['melody', 'comp', 'bass']) {
+    const muted = cfg.harmony?.voices?.[voice]?.muted;
+    const body = strip(`g-voice${muted ? ' muted' : ''}`, VOICE_LABELS[voice] + (muted ? ' (muted)' : ''), ROLL_H[voice]);
+    body.parentElement.dataset.voice = voice;
+    const all = h.parts.flatMap((p) => p.voices[voice].map((n) => ({ ...n, T: p.start + n.t })));
+    if (!all.length) continue;
+    const lo = Math.min(...all.map((n) => n.p)) - 1, hi = Math.max(...all.map((n) => n.p)) + 1;
+    const H = ROLL_H[voice], nh = Math.max(3, Math.min(8, (H - 4) / Math.max(1, hi - lo)));
+    for (const n of all) {
+      const d = el('div', `note${Math.abs(n.p - Math.round(n.p)) > 0.01 ? ' micro' : ''}${n.orn ? ' orn' : ''}`);
+      place(d, n.T, Math.max(0.35, n.d));
+      d.style.top = `${2 + ((hi - n.p) / (hi - lo)) * (H - nh - 4)}px`;
+      d.style.height = `${nh}px`;
+      d.style.setProperty('--v', 0.35 + 0.65 * (n.v ?? 0.7));
+      d.title = `${noteName(n.p, { octave: true })}${n.orn ? ` (${n.orn})` : ''}`;
+      body.append(d);
+    }
+  }
+}
 
 function el(tag, cls, text) {
   const d = document.createElement(tag);
@@ -37,6 +91,8 @@ export function renderGrid(container, result, final, cfg) {
     const bi = beatStarts.indexOf(t % barLen);
     br.append(el('div', `g-beat${edge(t)}`, bi >= 0 ? String(bi + 1) : ''));
   }
+
+  if (result.harmony) renderHarmonyRows(frag, result, cfg, total, barLen);
 
   for (const lane of LANES) {
     const muted = cfg.lanes?.[lane]?.muted;
@@ -115,6 +171,15 @@ export function renderAnalysis(container, result, final) {
   }
   c2.append(table(['part', 'lane', 'algorithm', 'cycle', 'detail'], rows));
 
+  const h = result.harmony;
+  if (h) {
+    const ch = card('Harmony & melody', `${h.keyName} ${h.scaleName} · ${h.tuningName}${h.micro ? ' (microtones on)' : ''} · grammar: ${h.grammar}. Bass follows the kick, the rhythm section the snare and hats.`);
+    const tr = (s) => ({ cls: 'trace', text: s || '–' });
+    ch.append(table(['part', 'key', 'chords', 'progression', 'bass', 'rhythm section', 'melody'], h.parts.map((p) => [
+      p.name, p.keyName, tr(p.prog.chords.map((c) => c.sym).join(' ')), tr(p.info.progression?.detail), tr(p.info.bass?.detail), tr(p.info.comp?.detail), tr(p.info.melody?.detail),
+    ])));
+  }
+
   const c3 = card('Oscillators & beating',
     'Each polymetric lane is an oscillator against the bar. Like two tones beating at |f1 − f2|, they drift apart and realign every lcm(cycle, bar) steps.');
   if (analysis.oscillators.length) {
@@ -130,9 +195,10 @@ export function renderAnalysis(container, result, final) {
   const c5 = card('Density & syncopation', 'Syncopation = mean off-grid weight of the onsets (0 = all on the downbeats).');
   c5.append(table(['lane', 'hits', 'per bar', 'syncopation'], LANES.map((l) => [l, analysis.lanes[l].hits, f2(analysis.lanes[l].perBar), f2(analysis.lanes[l].syncopation)])));
 
-  if (result.warnings.length) {
+  const warns = [...result.warnings, ...(result.harmony?.warnings || [])];
+  if (warns.length) {
     const c6 = card('Warnings');
-    for (const w of result.warnings) c6.append(el('p', 'warn', w));
+    for (const w of warns) c6.append(el('p', 'warn', w));
   }
   container.replaceChildren(frag);
 }

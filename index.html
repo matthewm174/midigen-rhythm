@@ -18,12 +18,15 @@
       <button id="btn-regen" title="Regenerate with the same seed (R)">Regenerate</button>
       <button id="btn-play" title="Play / stop (Space)">Play</button>
       <span class="group">
-        <button id="btn-midi" class="accent" title="Download .mid for Superior Drummer 3">Export MIDI</button>
+        <button id="btn-midi" class="accent" title="Download .mid (drums, bass, rhythm section, melody). The file remembers all settings, so Open MIDI brings it back exactly.">Export MIDI</button>
         <select id="midi-layout" title="MIDI export layout">
           <option value="tracks">Track per lane</option>
           <option value="combined">Single track</option>
+          <option value="drums">Drums only</option>
+          <option value="harmony">Harmony only</option>
         </select>
       </span>
+      <button id="btn-open" title="Open a .mid file: midigen files come back exactly; other MIDI files are imported (drums, bass, chords, melody) and locked">Open MIDI</button>
       <button id="btn-ascii" title="Copy the grid as text">Copy ASCII</button>
       <button id="btn-json" title="Copy settings as JSON">Copy JSON</button>
     </div>
@@ -41,10 +44,11 @@
         <summary><span class="p-title">Rhythm</span><span class="p-sum" id="sum-rhythm"></span></summary>
         <div class="p-body">
         <div class="fields">
-          <label>Tempo <input id="tempo" type="number" min="20" max="400" step="1" /></label>
-          <label>Meter <input id="meter" type="text" placeholder="7/8 (2+2+3)" /></label>
+          <label>Tempo <input id="tempo" type="number" min="20" max="400" step="1" placeholder="auto" title="Empty = auto: from the style, or a bpm in the description" /></label>
+          <label>Meter <input id="meter" type="text" placeholder="auto" title="Empty = auto: from the style, or a time signature in the description (e.g. 'in 7/8')" /></label>
           <label>Grid
             <select id="resolution">
+              <option value="auto">auto</option>
               <option value="16">1/16</option>
               <option value="24">1/24 (triplets)</option>
               <option value="32">1/32</option>
@@ -52,8 +56,12 @@
           </label>
           <label>Seed <input id="seed" type="number" min="0" step="1" /></label>
         </div>
-        <label class="wide">Describe the song
-          <textarea id="descriptors" rows="2" spellcheck="false" placeholder="e.g. fast metal with VERY heavy double bass, simple, soft hands, no ghosts, 180 bpm"></textarea>
+        <label class="wide">Style <small class="hint">set by the preset; tempo, meter and grid follow it when left on auto</small>
+          <input id="style" type="text" spellcheck="false" placeholder="e.g. metal · baroque · gregorian chant · tribal" />
+        </label>
+        <div id="style-understood" class="understood small"></div>
+        <label class="wide">Describe the song <small class="hint">changes the style: "swing", "slower", "in 7/8", "jazzier"…</small>
+          <textarea id="descriptors" rows="2" spellcheck="false" placeholder="e.g. swing, VERY heavy double bass, soft hands, no ghosts, 180 bpm"></textarea>
         </label>
         <div id="understood" class="understood"></div>
         <div id="tempo-hint" class="hint"></div>
@@ -61,6 +69,35 @@
           <summary>Descriptor list <small>click to add or remove</small></summary>
           <div id="chips" class="chips"></div>
         </details>
+        </div>
+      </details>
+
+      <details class="panel" data-panel="harmony" open>
+        <summary><span class="p-title">Harmony &amp; melody</span><span class="p-sum" id="sum-harmony"></span></summary>
+        <div class="p-body">
+        <p class="hint">Built on the rhythm: the bass locks to the kick, the rhythm section to the snare and hats, and the melody sits on the chords. The song description is read too, e.g. "baroque", "hard rock", "gregorian chant", "maqam", "in D dorian".</p>
+        <div class="fields">
+          <label>Key <select id="h-key"></select></label>
+          <label>Scale / mode <select id="h-scale"></select></label>
+          <label>Microtones
+            <select id="h-micro" title="Everything stays in 12-tone equal temperament unless microtones are on">
+              <option value="auto">Only if described</option>
+              <option value="off">Off (12-tone)</option>
+              <option value="on">On</option>
+            </select>
+          </label>
+          <label>Tuning <select id="h-tuning"></select></label>
+        </div>
+        <label class="wide">Describe the harmony &amp; melody
+          <textarea id="h-desc" rows="2" spellcheck="false" placeholder="e.g. walking bass, extended chords, catchy melody, A minor, quarter tones"></textarea>
+        </label>
+        <div id="h-understood" class="understood"></div>
+        <div id="h-hint" class="hint"></div>
+        <details class="sub">
+          <summary>Styles, eras &amp; scales <small>click to add or remove</small></summary>
+          <div id="h-chips" class="chips"></div>
+        </details>
+        <div id="voices"></div>
         </div>
       </details>
 
@@ -112,7 +149,7 @@
 
     <section class="view">
       <div class="grid-tools">
-        <span class="hint">Click a cell to toggle a hit, Shift+click to change articulation. Edited lanes lock automatically.</span>
+        <span class="hint">Click a drum cell to toggle a hit, Shift+click to change articulation. Edited lanes lock automatically. Hover notes to see pitches.</span>
         <label>Zoom <input id="zoom" type="range" min="8" max="28" step="1" value="16" /></label>
       </div>
       <div id="error" class="error" hidden></div>

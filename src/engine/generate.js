@@ -7,15 +7,78 @@ import { parseLaneSpec } from '../core/lanespec.js';
 import { generateLane } from './lanes.js';
 import { planFill, planBlast, planLull } from './fills.js';
 import { enforcePlayability } from './playability.js';
+import { interpretHarmony, blendHarmony } from '../harmony/styles.js';
+
+// The description is layered over the preset's style with extra weight, so it changes the style rather than replacing it.
+export const DESCRIPTION_WEIGHT = 1.3;
+
+// A word is only "unknown" if neither the drum nor the harmony vocabulary understands it.
+export function unknownToBoth(drumUnknown, text, scale = 1) {
+  const h = new Set(interpretHarmony(text, scale).unknown.map((u) => u.start));
+  return drumUnknown.filter((u) => h.has(u.start));
+}
+
+const isAuto = (v) => v === null || v === undefined || v === '' || v === 'auto';
+
+// Meter, tempo and grid: explicit settings win, then anything written in the description or style
+// ("in 7/8", "180 bpm"), then what the styles suggest. previousMeter is kept when lanes are locked.
+export function resolveSong(cfg, { previousMeter = null } = {}) {
+  const layers = [interpretDescriptors(cfg.style), interpretDescriptors(cfg.descriptors, DESCRIPTION_WEIGHT)];
+  const hLayers = [interpretHarmony(cfg.style), interpretHarmony(cfg.descriptors, DESCRIPTION_WEIGHT)];
+  const items = layers.flatMap((l) => l.items);
+  const hItems = hLayers.flatMap((l) => l.items);
+  const drums = blendItems(items);
+  const harm = blendHarmony(hItems).params;
+  const sources = {};
+
+  let meter = cfg.meter;
+  if (!isAuto(meter)) sources.meter = 'set';
+  else if (layers[1].meter || layers[0].meter) { meter = layers[1].meter || layers[0].meter; sources.meter = 'described'; }
+  else if (previousMeter) { meter = previousMeter; sources.meter = 'kept'; }
+  else {
+    const w = { ...drums.params.meters };
+    for (const [m, x] of Object.entries(harm.cats.meter || {})) w[m] = (w[m] || 0) + x;
+    const ms = Object.keys(w);
+    meter = ms.length ? new Rng(Number(cfg.seed) >>> 0).fork('meter').weighted(ms, (m) => w[m] ** 2) : '4/4';
+    sources.meter = ms.length ? 'style' : 'default';
+  }
+
+  let tempo = Number(cfg.tempo);
+  if (!isAuto(cfg.tempo) && tempo > 0) sources.tempo = 'set';
+  else if (layers[1].tempo || layers[0].tempo) { tempo = layers[1].tempo || layers[0].tempo; sources.tempo = 'described'; }
+  else {
+    const hints = [drums.tempoHint, blendHarmony(hItems).tempoHint].filter(Boolean);
+    tempo = hints.length ? Math.round(hints.reduce((a, b) => a + b, 0) / hints.length / 5) * 5 : 120;
+    sources.tempo = hints.length ? 'style' : 'default';
+  }
+
+  const resolution = isAuto(cfg.resolution) ? 16 : Number(cfg.resolution) || 16;
+  sources.resolution = isAuto(cfg.resolution) ? 'auto' : 'set';
+  return { meter, tempo: clamp(tempo, 20, 400), resolution, sources };
+}
 
 export function generateRhythm(cfg, { previous = null, keep = [] } = {}) {
-  const meter = parseMeter(cfg.meter, Number(cfg.resolution) || 16);
-  const tempo = clamp(Number(cfg.tempo) || 120, 20, 400);
+  const keepMeter = keep.length && previous?.meter?.text ? previous.meter.text : null;
+  const resolved = resolveSong(cfg, { previousMeter: keepMeter });
+  let meter;
+  try {
+    meter = parseMeter(resolved.meter, resolved.resolution);
+  } catch (err) {
+    if (resolved.sources.meter === 'set') throw err;
+    meter = parseMeter('4/4', resolved.resolution);
+  }
+  const tempo = resolved.tempo;
   // The grid is notated in meter.unit; irrational meters play it faster so a 1/den note lasts exactly 4/den quarters.
   const playTempo = tempo * meter.tempoScale;
   const tatumSec = (60 / playTempo) * (4 / meter.resolution);
   const warnings = [];
-  const song = interpretDescriptors(cfg.descriptors);
+  const styleText = interpretDescriptors(cfg.style);
+  const descText = interpretDescriptors(cfg.descriptors, DESCRIPTION_WEIGHT);
+  const song = {
+    items: [...styleText.items, ...descText.items],
+    overrides: { ...styleText.overrides, ...descText.overrides },
+    tempo: descText.tempo ?? styleText.tempo,
+  };
   const unknownMsg = (u) => (u.word.includes('=') ? `Unknown parameter "${u.word}"` : `Didn't recognize "${u.word}"`);
   const overrides = Object.fromEntries(Object.entries(cfg.overrides || {})
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
@@ -34,7 +97,8 @@ export function generateRhythm(cfg, { previous = null, keep = [] } = {}) {
 
   const global = blendItems(song.items, { ...song.overrides, ...overrides });
   global.tempoHint = song.tempo ?? global.tempoHint;
-  warnings.push(...song.unknown.map(unknownMsg));
+  warnings.push(...unknownToBoth(styleText.unknown, cfg.style).map(unknownMsg));
+  warnings.push(...unknownToBoth(descText.unknown, cfg.descriptors, DESCRIPTION_WEIGHT).map(unknownMsg));
   let baseKeeper = root.fork('timekeeper').chance(global.params.rideBias) ? 'ride' : 'hihat';
   if (specs.hihat.off && !specs.ride.off) baseKeeper = 'ride';
   if (specs.ride.off && !specs.hihat.off) baseKeeper = 'hihat';
@@ -51,7 +115,7 @@ export function generateRhythm(cfg, { previous = null, keep = [] } = {}) {
     const role = ROLES.includes(pc.role) ? pc.role : 'groove';
     // Part descriptions weigh more than the song description so variations stand out.
     const partDesc = interpretDescriptors(pc.descriptors, 1.5);
-    partDesc.unknown.forEach((u) => warnings.push(`${pc.name}: ${unknownMsg(u)}`));
+    unknownToBoth(partDesc.unknown, pc.descriptors, 1.5).forEach((u) => warnings.push(`${pc.name}: ${unknownMsg(u)}`));
     let params = blendItems([...song.items, ...partDesc.items], { ...song.overrides, ...partDesc.overrides, ...overrides }).params;
     if (pc.tension !== null && pc.tension !== undefined && pc.tension !== '') params.tension = clamp(Number(pc.tension));
     if (blastForced) params.blast = Math.max(params.blast, 0.9);
@@ -105,5 +169,5 @@ export function generateRhythm(cfg, { previous = null, keep = [] } = {}) {
     enforcePlayability(first, tatumSec, first.params, [...keep, 'crash']);
   }
 
-  return { meter, tempo, playTempo, tatumSec, parts, total: start, warnings, tempoHint: global.tempoHint, timekeeper: baseKeeper, seed: cfg.seed };
+  return { meter, tempo, playTempo, tatumSec, parts, total: start, warnings, tempoHint: global.tempoHint, timekeeper: baseKeeper, seed: cfg.seed, resolved };
 }
