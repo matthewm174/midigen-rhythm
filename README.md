@@ -1,10 +1,196 @@
-# midigen·rhythm: technical overview
+# midigen·rhythm
 
-midigen·rhythm generates multi-lane drum rhythms from a style (a preset such as metal, baroque or tribal, or typed in), a plain-English description that modifies that style, and a list of song parts. The time signature, tempo and grid follow from the style unless you set them by hand. It then builds harmony and melody on top of the rhythm: a chord progression, a bass line locked to the kick, a rhythm section locked to the snare and hats, and a melody over the chords. Styles range from Gregorian chant and organum through baroque, classical and romantic to jazz, hard rock, metal and electronic music, plus maqam, raga and gamelan. Everything is in 12-tone equal temperament unless microtones are switched on. Songs are exported as Standard MIDI Files (drums for Superior Drummer 3 (SD3), pitched tracks for any instrument) that carry their full state, so a saved file can be opened again exactly. It runs in the browser with no dependencies and no build step.
+**A generative composer in the browser.** Pick a style, describe how you want it changed, and midigen writes the drums, chords, bass, rhythm section and melody, then exports them as MIDI.
 
-This document describes what is implemented: the time model, the algorithms, how lanes and parts are made to line up, the harmony and melody layer, and how to use the output. Citations are author–year and refer to [§12 References](#12-references). [§13](#13-attribution-and-originality) separates borrowed code and published methods from the project's own heuristics.
+![midigen with the Hard rock style changed by "swing": chord chart, melody, rhythm section and bass rolls above the drum lanes](docs/img/hero.png)
+
+- **Style first, then your words.** Presets are styles (Metal, Baroque, Gregorian chant, Tribal, Maqam…). Whatever you type modifies the style: Metal + "swing" gives swung metal.
+- **The rhythm is the foundation.** The bass plays on the kick, the chords on the snare and hats, and the melody sits on the chords.
+- **Over 50 styles and eras.** Gregorian chant, organum, renaissance, baroque, classical, romantic, impressionist and twelve-tone; blues, jazz and funk; pop, hard rock, metal, doom and djent; EDM; flamenco, celtic, maqam, raga and gamelan.
+- **Microtones if you want them.** Twelve-tone equal temperament by default; just intonation, meantone, quarter tones, 31-EDO, shruti or gamelan tunings when you ask.
+- **MIDI out and back in.** Every exported `.mid` remembers the whole song, and **Open MIDI** brings it back exactly. Other MIDI files can be imported and built on.
+- No install, no build, no dependencies: `npm start` and open the page.
+
+## How to use
+
+Each step below has a screenshot with numbered callouts; the list under it says what each number does.
+
+### 0. Start it
+
+```sh
+npm start            # serves the app at http://localhost:5173 (Node.js 18+, nothing to install)
+```
+
+Open http://localhost:5173 in a browser. Everything you need is in the toolbar:
+
+![Toolbar with numbered callouts](docs/img/howto-0-toolbar.png)
+
+1. **Presets…** Pick a style, or load, save, delete, export and import your own presets.
+2. **Save preset** keeps the current song in the browser, including locked lanes and voices.
+3. **New seed** (key N) makes a fresh variation. **Regenerate** (R) re-runs the same seed after you change settings.
+4. **Play** (Space) loops the song with a built-in preview synth.
+5. **Export MIDI** downloads the song as a `.mid` file.
+6. The **layout** menu next to it chooses: track per lane, single track, drums only, or harmony only.
+7. **Open MIDI** loads a `.mid` back in. You can also drag a file onto the page.
+
+### 1. Pick a style
+
+![Rhythm panel with numbered callouts](docs/img/howto-1-style.png)
+
+1. Choose a style from **Presets…**: Metal, Hard rock, Baroque, Gregorian chant, Tribal, Maqam and so on.
+2. The preset fills the **Style** box. You can also type your own, e.g. `doom metal` or `gregorian chant in D dorian`.
+3. **Tempo**, **Meter** and **Grid** say *auto*: they follow the style. Tribal may land in 7/8 or 12/8, a waltz in 3/4, a jig in 6/8. Type a value to fix one, and clear the field to go back to auto.
+4. **Heard** shows how your words were understood. Plain chips are drum terms and ♪ chips are harmony terms. Unrecognized words are listed at the end.
+
+### 2. Describe how to change it
+
+<img src="docs/img/howto-2-describe.png" alt="Describe the song box with numbered callouts" width="400" align="right" />
+
+1. Type a change in **Describe the song**, e.g. `swing`. It applies as you type.
+2. **Heard** shows it at ×1.3 weight: it *modifies* the style rather than replacing it.
+3. The panel summary shows the result: metal, now swung.
+
+Your description stays when you switch presets, so you can try the same change on different styles.
+
+<br clear="right" />
+
+The same Metal style, before and after typing `jazzier`. The bass starts walking, the rhythm section switches to short jazz stabs, the kit moves to the ride, and the double kick thins out:
+
+| Metal | Metal + `jazzier` |
+|---|---|
+| ![Metal before](docs/img/howto-2-before.png) | ![Metal after "jazzier"](docs/img/howto-2-after.png) |
+
+| Type | With the Metal style you get |
+|---|---|
+| `swing` | swung metal: ghost notes and swung timing (the harmony stays metal) |
+| `jazzier` / `jazz` | halfway between metal and jazz: less double kick, walking bass, jazz chords |
+| `in 7/8` · `5/4` · `7/8 (2+2+3)` | the same style in that meter |
+| `slower` · `140 bpm` | a slower or exact tempo |
+| `VERY heavy double bass, no ghosts` | emphasis with "very", "!" or CAPS; removal with "no" or "not" |
+| `sparse, soft hands` | fewer hits, quieter snare and cymbals |
+| `dark, chromatic` | a darker scale, more chromatic chords |
+
+### 3. Shape the harmony and melody
+
+<img src="docs/img/howto-3-harmony.png" alt="Harmony & melody panel with numbered callouts" width="400" align="right" />
+
+1. **Key**: auto, or fixed. You can also type a key in any description: `in A minor`, `F# dorian`.
+2. **Scale / mode**: auto (from the style), or any of about 40 scales and modes.
+3. **Microtones**: off unless you describe them (`quarter tones`, `just intonation`, `31 edo`, `microtonal`). Choose **On** to force them.
+4. **Tuning**: with microtones on, e.g. just intonation, meantone, Werckmeister, 24/31/53-EDO, shruti, gamelan.
+5. **Describe the harmony & melody**, e.g. `walking bass, extended chords, catchy melody`.
+6. **Chords**: leave on auto, or type a chart. Here `Em C G D` was typed; the hard-rock style turns it into power chords. Roman numerals (`i bVI III bVII`) and degrees (`1 4 5 1`) work too.
+7. **Voice style** for the bass: `walking`, `pedal`, `octave`, `root fifth`, `chug`…; for the rhythm section: `pad`, `strum`, `arpeggio`, `power`, `tremolo`, `alberti`, `skank`…; for the melody: `riff`, `chant`, `lyrical`, `bebop`, `busy high`, `follow snare`…
+8. **Instrument** (General MIDI) for that voice.
+9. **M** mutes the voice: it stays visible but isn't played or exported.
+10. **lock** keeps the voice when you regenerate.
+11. **re-roll** remakes only this voice over the same chords and drums.
+
+Open **Styles, eras & scales** (just above the voices) to click any style or scale on or off.
+
+<br clear="right" />
+
+### 4. Read and edit the grid
+
+![The grid with numbered callouts](docs/img/howto-4-grid.png)
+
+1. **Part header**: name, role, bars, and the timekeeper (hi-hat or ride).
+2. **Chord chart**, with key and scale on the left. Hover a chord for its Roman numeral.
+3. **Melody** piano roll. Hover a note for its pitch.
+4. **Rhythm section**: here, power chords on the kick and snare.
+5. **Bass**: here, eighths on the root.
+6. **Drum lanes**: kick at the bottom, crash at the top.
+7. **Click a cell** to add or remove a hit; **Shift+click** changes the articulation (ghost, rim, open hat…). Edited lanes lock automatically, and the bass follows the new kick.
+
+With microtones on, microtonal notes have a dashed outline. This is maqam bayati in quarter tones, over a drone and a tribal kit:
+
+![Maqam bayati in quarter tones: dashed notes are microtones](docs/img/microtonal.png)
+
+### 5. Arrange parts and drum lanes
+
+<table><tr>
+<td valign="top"><img src="docs/img/howto-5-parts.png" alt="Parts panel with numbered callouts" width="400" /></td>
+<td valign="top"><img src="docs/img/howto-5-lanes.png" alt="Lanes panel with numbered callouts" width="400" /></td>
+</tr></table>
+
+**Parts** (left) are sections played in order and looped:
+1. Part **name**.
+2. Length in **bars**.
+3. **Role**:
+   - *groove* sets the motif.
+   - *variation* varies it.
+   - *contrast* brings new material and may change key.
+   - *build* rises into the next part.
+   - *breakdown* is half-time and sparse.
+   - *fill* turns around back to the top.
+4. **How this part differs**, e.g. `busier, loud hands, no double bass` or `in E minor`. It outweighs the song description.
+5. **+ part** adds a section.
+
+**Lanes** (right), one per drum:
+1. A **spec** in plain English (`double bass, loud`, `simple backbeat, ghost notes`) or in the lane language (`euclid 5/16`, `grid 1/8, accent &`).
+2. **M** mutes the lane in playback and MIDI.
+3. **lock** keeps it when regenerating.
+4. **re-roll** remakes just this lane, in context.
+5. What generated the lane (hover for every part).
+
+### 6. Fine-tune the feel
+
+<img src="docs/img/howto-6-feel.png" alt="Feel panel with numbered callouts" width="400" align="right" />
+
+1. **Feel** sliders show what the style and description produced. Dragging one overrides it: tension, density, humanize, swing, and the kick (feet) vs. the rest of the kit (hands).
+2. **auto** hands the slider back to the style.
+
+A typical loop:
+1. **New seed** until something is close.
+2. **lock** what you like.
+3. **re-roll** the rest, or change the description, until it sits right.
+
+<br clear="right" />
+
+### 7. Listen, export and keep your songs
+
+- **Play** loops the song. The preview synth is only for checking timing and pitch; the real sound comes from your instruments.
+- **Export MIDI** writes:
+  - drums on channel 10, for Superior Drummer 3 or any GM kit (edit the **Drum map** panel to match your kit);
+  - melody, rhythm section and bass on their own tracks, with suggested instruments;
+  - microtonal notes as per-note pitch bend, for MPE or multi-timbral synths.
+- **Every exported file remembers the whole song.** Keep your `.mid` files: **Open MIDI**, or drag-and-drop, brings one back exactly, ready for more changes.
+- **Other MIDI files** can be opened too. Their drums, bass, chords and melody are imported and locked, and anything missing is generated around them.
+
+<img src="docs/img/analysis-harmony.png" alt="Analysis: per-part key, chords, progression, bass, rhythm-section and melody details" width="560" />
+
+Open **Analysis** under the grid to see what was generated: the algorithm behind each lane, how the lanes align, polymeter, and each part's key, chords and voices.
+
+### Recipes
+
+| Style (preset) | Description | Result |
+|---|---|---|
+| Metal | `swing` | Swung metal with ghost notes, still chugging |
+| Metal | `jazz` | Less double kick, a walking bass under metal chugs |
+| Doom | `waltz` | Doom in 3/4 with an oom-pah bass |
+| Baroque | `in 3/4, ornamented` | A baroque dance: continuo bass, block chords, an ornamented melody |
+| Gregorian chant | none | Unaccompanied chant in D dorian (drums muted) |
+| Tribal | `jazzier, sparse` | A sparse, swung tribal kit with jazz harmony (walking bass, comping) |
+| Maqam (microtonal) | `slower` | Quarter-tone maqam bayati over a drone, sparser |
+| Jazz | `in 5/4, dark` | A minor-mode 5/4 with walking bass and comping |
+| Hard rock | `no double bass, 12/8` | A 12/8 blues-rock groove: riffs, power chords, driving bass |
+
+Instruments are chosen per voice with the instrument picker. Words like "harpsichord" or "sitar" in a description select a style (baroque, raga), not an instrument.
+
+---
+
+## Technical overview
+
+This document describes what is implemented: the time model, the algorithms, how lanes and parts are made to line up, the harmony and melody layer, and how to use the output. In summary:
+- Drum rhythms are generated from a style (a preset such as metal, baroque or tribal, or typed in), a plain-English description that modifies that style, and a list of song parts. The time signature, tempo and grid follow from the style unless set by hand.
+- Harmony and melody are built on top: a chord progression, a bass line locked to the kick, a rhythm section locked to the snare and hats, and a melody over the chords.
+- Everything is in 12-tone equal temperament unless microtones are switched on.
+- Songs are exported as Standard MIDI Files: drums for Superior Drummer 3 (SD3), pitched tracks for any instrument. Each file carries its full state, so a saved file can be opened again exactly.
+
+Citations are author–year and refer to [§12 References](#12-references). [§13](#13-attribution-and-originality) separates borrowed code and published methods from the project's own heuristics.
 
 **Contents**
+- [How to use](#how-to-use)
 1. [Pipeline](#1-pipeline)
 2. [Time model](#2-time-model)
 3. [Inputs](#3-inputs)

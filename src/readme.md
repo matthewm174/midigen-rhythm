@@ -11,7 +11,7 @@ npm start            # serves the app at http://localhost:5173
 node serve.mjs 8080  # or pick a different port
 ```
 
-Then open the URL in your browser.
+Then open the URL in your browser. For an illustrated, step-by-step walkthrough, see [How to use](../README.md#how-to-use) in the main README.
 
 ## Describing a beat
 

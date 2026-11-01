@@ -251,7 +251,7 @@ const P = {
   eerie: 'mysterious', spooky: 'mysterious', creepy: 'mysterious', haunting: 'mysterious', mystical: 'mysterious', suspense: 'tense', suspenseful: 'tense', dissonant: 'tense',
   dreamlike: 'dreamy', ethereal: 'dreamy', lush: 'extended', heroic: 'epic', majestic: 'epic', grand: 'epic', oriental: 'exotic',
   'power chord': 'powerchords', 'power chords': 'powerchords', 'seventh chords': 'sevenths', '7th chords': 'sevenths', '7ths': 'sevenths', sevenths: 'sevenths',
-  'extended chords': 'extended', 'extended harmony': 'extended', jazzier: 'extended', ninths: 'extended', '9ths': 'extended', 'jazz chords': 'extended',
+  'extended chords': 'extended', 'extended harmony': 'extended', jazzier: ['jazz', 'extended'], ninths: 'extended', '9ths': 'extended', 'jazz chords': 'extended',
   chromaticism: 'chromatic', 'pedal point': 'pedalpoint', 'pedal tone': 'pedalpoint', modulation: 'modulating', modulations: 'modulating', 'key changes': 'modulating',
   'fast harmonic rhythm': 'fastchanges', 'fast chord changes': 'fastchanges', 'slow harmonic rhythm': 'slowchanges', 'slow chord changes': 'slowchanges',
   'one chord': 'vamp', 'static harmony': 'vamp', vamping: 'vamp', 'open voicings': 'openvoicings', 'open voicing': 'openvoicings', 'wide voicings': 'openvoicings',

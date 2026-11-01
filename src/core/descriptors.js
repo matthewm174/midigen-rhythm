@@ -148,7 +148,7 @@ const PHRASES = {
   sombre: 'dreary', gloomy: 'dreary', bleak: 'dreary', melancholy: 'dreary', melancholic: 'dreary', dismal: 'dreary', desolate: 'dreary',
   roll: 'rolls', 'snare roll': 'rolls', 'snare rolls': 'rolls', 'buzz roll': 'rolls', 'buzz rolls': 'rolls', 'press rolls': 'rolls', march: 'rolls',
   lull: 'lulls', 'drop outs': 'lulls', dropouts: 'lulls', spacious: 'lulls', space: 'lulls', progressive: 'complex', prog: 'complex', proggy: 'complex', technical: 'complex', 'tech death': ['death', 'complex'],
-  funky: 'funk', 'hip hop': 'hiphop', 'boom bap': 'hiphop', rap: 'hiphop', jazzy: 'jazz', bebop: 'jazz',
+  funky: 'funk', 'hip hop': 'hiphop', 'boom bap': 'hiphop', rap: 'hiphop', jazzy: 'jazz', jazzier: 'jazz', bebop: 'jazz',
   edm: 'dance', house: 'dance', techno: 'dance', disco: 'dance', club: 'dance', electronic: 'dance',
   'four on the floor': 'fourfloor', '4 on the floor': 'fourfloor', fotf: 'fourfloor', '4otf': 'fourfloor',
   'double bass': 'doublebass', 'double basses': 'doublebass', 'double kick': 'doublebass', 'double kicks': 'doublebass',
