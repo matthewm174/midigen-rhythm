@@ -1,0 +1,11 @@
+{
+  "name": "midigen-rhythm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generative drum rhythms for Superior Drummer 3 (MIDI), in the browser.",
+  "scripts": {
+    "start": "node serve.mjs",
+    "test": "node tests/smoke.mjs"
+  }
+}

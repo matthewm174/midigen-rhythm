@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>midigen · rhythm</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>midigen<span>·rhythm</span></h1>
+    <div class="actions">
+      <span class="group">
+        <select id="preset" title="Load, delete, export or import presets"></select>
+        <button id="btn-save-preset" title="Save the current settings (and any locked or hand-edited lanes) as a preset">Save preset</button>
+      </span>
+      <button id="btn-new" class="primary" title="New seed (N)">New seed</button>
+      <button id="btn-regen" title="Regenerate with the same seed (R)">Regenerate</button>
+      <button id="btn-play" title="Play / stop (Space)">Play</button>
+      <span class="group">
+        <button id="btn-midi" class="accent" title="Download .mid for Superior Drummer 3">Export MIDI</button>
+        <select id="midi-layout" title="MIDI export layout">
+          <option value="tracks">Track per lane</option>
+          <option value="combined">Single track</option>
+        </select>
+      </span>
+      <button id="btn-ascii" title="Copy the grid as text">Copy ASCII</button>
+      <button id="btn-json" title="Copy settings as JSON">Copy JSON</button>
+    </div>
+    <form id="preset-bar" class="preset-bar" hidden>
+      <span id="preset-msg"></span>
+      <input id="preset-name" type="text" placeholder="Preset name" maxlength="60" />
+      <button type="submit" id="preset-ok" class="primary">Save</button>
+      <button type="button" id="preset-cancel">Cancel</button>
+    </form>
+  </header>
+
+  <main class="layout">
+    <aside class="controls">
+      <details class="panel" data-panel="rhythm" open>
+        <summary><span class="p-title">Rhythm</span><span class="p-sum" id="sum-rhythm"></span></summary>
+        <div class="p-body">
+        <div class="fields">
+          <label>Tempo <input id="tempo" type="number" min="20" max="400" step="1" /></label>
+          <label>Meter <input id="meter" type="text" placeholder="7/8 (2+2+3)" /></label>
+          <label>Grid
+            <select id="resolution">
+              <option value="16">1/16</option>
+              <option value="24">1/24 (triplets)</option>
+              <option value="32">1/32</option>
+            </select>
+          </label>
+          <label>Seed <input id="seed" type="number" min="0" step="1" /></label>
+        </div>
+        <label class="wide">Describe the song
+          <textarea id="descriptors" rows="2" spellcheck="false" placeholder="e.g. fast metal with VERY heavy double bass, simple, soft hands, no ghosts, 180 bpm"></textarea>
+        </label>
+        <div id="understood" class="understood"></div>
+        <div id="tempo-hint" class="hint"></div>
+        <details class="sub">
+          <summary>Descriptor list <small>click to add or remove</small></summary>
+          <div id="chips" class="chips"></div>
+        </details>
+        </div>
+      </details>
+
+      <details class="panel" data-panel="feel">
+        <summary><span class="p-title">Feel</span><span class="p-sum" id="sum-feel"></span></summary>
+        <div class="p-body">
+        <div class="sliders">
+          <div class="slider" data-key="tension"><span>Tension</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+          <div class="slider" data-key="density"><span>Density</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+          <div class="slider" data-key="humanize"><span>Humanize</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+          <div class="slider" data-key="swing"><span>Swing</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+          <div class="slider" data-key="feet" title="Kick velocity (0.5 = neutral)"><span>Feet</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+          <div class="slider" data-key="hands" title="Snare, hats, ride, toms and cymbal velocity (0.5 = neutral)"><span>Hands</span><input type="range" min="0" max="1" step="0.05" /><output></output><button class="mini">auto</button></div>
+        </div>
+        <p class="hint">Sliders start on <b>auto</b> (set by the song description). Drag one to override it. Feet and Hands set how hard the kick vs. everything else is played.</p>
+        </div>
+      </details>
+
+      <details class="panel" data-panel="parts">
+        <summary><span class="p-title">Parts</span><span class="p-sum" id="sum-parts"></span></summary>
+        <div class="p-body">
+        <p class="hint">Sections played in order. Each row: name, bars, role. Below it you can describe how this part differs from the song (e.g. "busier, louder hands, no double bass"). Part descriptions outweigh the song description.</p>
+        <div id="parts"></div>
+        <button id="btn-add-part" class="mini">+ part</button>
+        </div>
+      </details>
+
+      <details class="panel" data-panel="lanes">
+        <summary><span class="p-title">Lanes</span><span class="p-sum" id="sum-lanes"></span></summary>
+        <div class="p-body">
+        <p class="hint">Generated top to bottom: kick → snare → hats/ride → toms → cymbals → crash. Type plain English in a lane (e.g. "double bass, loud" or "busy offbeat") or use the lane language below.</p>
+        <div id="lanes"></div>
+        <details class="sub">
+          <summary>Lane language</summary>
+          <table id="help" class="help"></table>
+        </details>
+        </div>
+      </details>
+
+      <details class="panel" data-panel="drummap">
+        <summary><span class="p-title">Drum map</span><span class="p-sum" id="sum-drummap"></span></summary>
+        <div class="p-body">
+          <p class="hint">GM-compatible defaults. Edit to match your Superior Drummer 3 MIDI mapping.</p>
+          <textarea id="drummap" rows="10" spellcheck="false"></textarea>
+          <button id="btn-map-reset" class="mini">reset</button>
+        </div>
+      </details>
+    </aside>
+
+    <section class="view">
+      <div class="grid-tools">
+        <span class="hint">Click a cell to toggle a hit, Shift+click to change articulation. Edited lanes lock automatically.</span>
+        <label>Zoom <input id="zoom" type="range" min="8" max="28" step="1" value="16" /></label>
+      </div>
+      <div id="error" class="error" hidden></div>
+      <div id="grid-wrap" class="grid-wrap"><div id="grid" class="grid"></div><div id="playhead" class="playhead" hidden></div></div>
+      <details class="panel analysis-panel" data-panel="analysis">
+        <summary><span class="p-title">Analysis</span><span class="p-sum">algorithms, density, alignment</span></summary>
+        <div id="analysis" class="analysis"></div>
+      </details>
+    </section>
+  </main>
+
+  <script type="module" src="src/ui/app.js"></script>
+</body>
+</html>
