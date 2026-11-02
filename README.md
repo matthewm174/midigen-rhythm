@@ -1,5 +1,9 @@
 # midigen·rhythm
 
+> **AI disclaimer:** This project was written with the help of AI coding assistants. The code, the
+> documentation and the descriptions of musical styles, scales and tunings may contain mistakes.
+> Check anything important against a reliable source before relying on it.
+
 **A generative composer in the browser.** Pick a style, describe how you want it changed, and midigen writes the drums, chords, bass, rhythm section and melody, then exports them as MIDI.
 
 ![midigen with the Hard rock style changed by "swing": chord chart, melody, rhythm section and bass rolls above the drum lanes](docs/img/hero.png)
