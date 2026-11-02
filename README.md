@@ -208,6 +208,7 @@ Citations are author–year and refer to [§12 References](#12-references). [§1
 11. [Limitations](#11-limitations)
 12. [References](#12-references)
 13. [Attribution and originality](#13-attribution-and-originality)
+14. [License](#14-license)
 
 ---
 
@@ -980,3 +981,7 @@ Wolfram, S. (1983). Statistical mechanics of cellular automata. *Reviews of Mode
 Genre and era settings (e.g. doom, djent, baroque, maqam) are informal and reflect common practice, not research. Maqam, raga and gamelan scales and tunings are simplified approximations.
 
 **Trademarks.** Superior Drummer and SDX are trademarks of Toontrack Music AB. This project isn't affiliated with or endorsed by Toontrack. General MIDI is a specification of the MIDI Manufacturers Association (now the MIDI Association).
+
+## 14. License
+
+Public domain, under [the Unlicense](LICENSE). Do whatever you want with it: copy, change, sell or redistribute it, with or without credit. There is no warranty. MIDI files and songs you generate are yours.

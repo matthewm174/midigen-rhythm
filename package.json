@@ -2,6 +2,7 @@
   "name": "midigen-rhythm",
   "version": "0.1.0",
   "private": true,
+  "license": "Unlicense",
   "type": "module",
   "description": "Generative drum rhythms for Superior Drummer 3 (MIDI), with harmony and melody built on top, in the browser.",
   "scripts": {
